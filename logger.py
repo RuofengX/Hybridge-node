@@ -3,7 +3,8 @@ from config import DEBUG
 
 
 class Colors:
-    """ ANSI color codes """
+    """ANSI color codes"""
+
     BLACK = "\033[0;30m"
     RED = "\033[0;31m"
     GREEN = "\033[0;32m"
@@ -32,7 +33,7 @@ class Colors:
     # cancel SGR codes if we don't write to a terminal
     if not __import__("sys").stdout.isatty():
         for _ in dir():
-            if isinstance(_, str) and _[0] != "_":
+            if _[0] != "_":
                 locals()[_] = ""
     else:
         # set Windows console in VT mode
@@ -43,13 +44,15 @@ class Colors:
 
 
 class LoggerFormatter(logging.Formatter):
-
     FORMATS = {
-        logging.DEBUG: Colors.CYAN + '%(levelname)s: ' + Colors.END + "%(message)s",
-        logging.INFO: Colors.BLUE + '%(levelname)s: ' + Colors.END + "%(message)s",
-        logging.WARNING: Colors.YELLOW + '%(levelname)s: ' + Colors.END + "%(message)s",
-        logging.ERROR: Colors.RED + '%(levelname)s: ' + Colors.END + "%(message)s",
-        logging.CRITICAL: Colors.LIGHT_RED + '%(levelname)s: ' + Colors.END + "%(message)s",
+        logging.DEBUG: Colors.CYAN + "%(levelname)s: " + Colors.END + "%(message)s",
+        logging.INFO: Colors.BLUE + "%(levelname)s: " + Colors.END + "%(message)s",
+        logging.WARNING: Colors.YELLOW + "%(levelname)s: " + Colors.END + "%(message)s",
+        logging.ERROR: Colors.RED + "%(levelname)s: " + Colors.END + "%(message)s",
+        logging.CRITICAL: Colors.LIGHT_RED
+        + "%(levelname)s: "
+        + Colors.END
+        + "%(message)s",
     }
 
     def format(self, record):
@@ -67,6 +70,4 @@ handler.setFormatter(LoggerFormatter())
 logger.setLevel(logging.DEBUG if DEBUG else logging.INFO)
 logger.addHandler(handler)
 
-__all__ = [
-    "logger"
-]
+__all__ = ["logger"]

@@ -1,4 +1,3 @@
-from typing import Callable
 import atexit
 import json
 import re
@@ -6,6 +5,7 @@ import subprocess
 import threading
 from collections import deque
 from contextlib import contextmanager
+from typing import Callable
 
 from config import DEBUG, SSL_CERT_FILE, SSL_KEY_FILE, XRAY_API_PORT
 from logger import logger
