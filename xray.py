@@ -1,3 +1,4 @@
+from typing import Callable
 import atexit
 import json
 import re
@@ -13,74 +14,61 @@ from logger import logger
 class XRayConfig(dict):
     """
     Loads Xray config json
-    config must contain an inbound with the API_INBOUND tag name which handles API requests
+    config must contain an inbound with the API_INBOUND tag name which handles
+    API requests
     """
 
     def __init__(self, config: str):
-        config = json.loads(config)
+        _config = json.loads(config)
 
         self.api_port = XRAY_API_PORT
         self.ssl_cert = SSL_CERT_FILE
         self.ssl_key = SSL_KEY_FILE
 
-        super().__init__(config)
+        super().__init__(_config)
         self._apply_api()
 
     def to_json(self, **json_kwargs):
         return json.dumps(self, **json_kwargs)
 
     def _apply_api(self):
-        for inbound in self.get('inbounds', []):
-            if inbound.get('protocol') == 'dokodemo-door':
-                self['inbounds'].remove(inbound)
+        for inbound in self.get("inbounds", []):
+            if inbound.get("protocol") == "dokodemo-door":
+                self["inbounds"].remove(inbound)
 
-        for rule in self.get('routing', {}).get("rules", []):
-            api_tag = self.get('api', {}).get('tag')
-            if api_tag and rule.get('outboundTag') == api_tag:
-                self['routing']['rules'].remove(rule)
+        for rule in self.get("routing", {}).get("rules", []):
+            api_tag = self.get("api", {}).get("tag")
+            if api_tag and rule.get("outboundTag") == api_tag:
+                self["routing"]["rules"].remove(rule)
 
         self["api"] = {
-            "services": [
-                "HandlerService",
-                "StatsService",
-                "LoggerService"
-            ],
-            "tag": "API"
+            "services": ["HandlerService", "StatsService", "LoggerService"],
+            "tag": "API",
         }
         self["stats"] = {}
         self["policy"] = {
-            "levels": {
-                "0": {
-                    "statsUserUplink": True,
-                    "statsUserDownlink": True
-                }
-            },
+            "levels": {"0": {"statsUserUplink": True, "statsUserDownlink": True}},
             "system": {
                 "statsInboundDownlink": False,
                 "statsInboundUplink": False,
                 "statsOutboundDownlink": True,
-                "statsOutboundUplink": True
-            }
+                "statsOutboundUplink": True,
+            },
         }
         inbound = {
             "listen": "0.0.0.0",
             "port": self.api_port,
             "protocol": "dokodemo-door",
-            "settings": {
-                "address": "127.0.0.1"
-            },
+            "settings": {"address": "127.0.0.1"},
             "streamSettings": {
                 "security": "tls",
                 "tlsSettings": {
                     "certificates": [
-                        {
-                            "certificateFile": self.ssl_cert,
-                            "keyFile": self.ssl_key
-                        }
+                        {"certificateFile": self.ssl_cert, "keyFile": self.ssl_key}
                     ]
-                }
+                },
             },
-            "tag": "API_INBOUND"
+            "tag": "API_INBOUND",
         }
         try:
             self["inbounds"].insert(0, inbound)
@@ -88,13 +76,7 @@ class XRayConfig(dict):
             self["inbounds"] = []
             self["inbounds"].insert(0, inbound)
 
-        rule = {
-            "inboundTag": [
-                "API_INBOUND"
-            ],
-            "outboundTag": "API",
-            "type": "field"
-        }
+        rule = {"inboundTag": ["API_INBOUND"], "outboundTag": "API", "type": "field"}
         try:
             self["routing"]["rules"].insert(0, rule)
         except KeyError:
@@ -103,36 +85,37 @@ class XRayConfig(dict):
 
 
 class XRayCore:
-    def __init__(self,
-                 executable_path: str = "/usr/bin/xray",
-                 assets_path: str = "/usr/share/xray"):
+    def __init__(
+        self,
+        executable_path: str = "/usr/bin/xray",
+        assets_path: str = "/usr/share/xray",
+    ):
         self.executable_path = executable_path
         self.assets_path = assets_path
 
         self.version = self.get_version()
-        self.process = None
+        self.process: None | subprocess.Popen = None
         self.restarting = False
 
         self._logs_buffer = deque(maxlen=100)
         self._temp_log_buffers = []
         self._on_start_funcs = []
         self._on_stop_funcs = []
-        self._env = {
-            "XRAY_LOCATION_ASSET": assets_path
-        }
+        self._env = {"XRAY_LOCATION_ASSET": assets_path}
 
         atexit.register(lambda: self.stop() if self.started else None)
 
     def get_version(self):
         cmd = [self.executable_path, "version"]
-        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
-        m = re.match(r'^Xray (\d+\.\d+\.\d+)', output)
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8")
+        m = re.match(r"^Xray (\d+\.\d+\.\d+)", output)
         if m:
             return m.groups()[0]
 
     def __capture_process_logs(self):
         def capture_and_debug_log():
             while self.process:
+                assert self.process.stdout is not None, StopIteration
                 output = self.process.stdout.readline()
                 if output:
                     output = output.strip()
@@ -146,6 +129,7 @@ class XRayCore:
 
         def capture_only():
             while self.process:
+                assert self.process.stdout is not None, StopIteration
                 output = self.process.stdout.readline()
                 if output:
                     output = output.strip()
@@ -184,23 +168,21 @@ class XRayCore:
         if self.started is True:
             raise RuntimeError("Xray is started already")
 
-        if config.get('log', {}).get('logLevel') in ('none', 'error'):
-            config['log']['logLevel'] = 'warning'
+        if config.get("log", {}).get("logLevel") in ("none", "error"):
+            config["log"]["logLevel"] = "warning"
 
-        cmd = [
-            self.executable_path,
-            "run",
-            '-config',
-            'stdin:'
-        ]
+        cmd = [self.executable_path, "run", "-config", "stdin:"]
         self.process = subprocess.Popen(
             cmd,
             env=self._env,
             stdin=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            universal_newlines=True
+            universal_newlines=True,
         )
+
+        assert self.process.stdin is not None
+
         self.process.stdin.write(config.to_json())
         self.process.stdin.flush()
         self.process.stdin.close()
@@ -215,8 +197,10 @@ class XRayCore:
         if not self.started:
             return
 
-        self.process.terminate()
-        self.process = None
+        if self.process is not None:
+            self.process.terminate()
+            self.process = None
+
         logger.warning("Xray core stopped")
 
         # execute on stop functions
@@ -235,10 +219,10 @@ class XRayCore:
         finally:
             self.restarting = False
 
-    def on_start(self, func: callable):
+    def on_start(self, func: Callable):
         self._on_start_funcs.append(func)
         return func
 
-    def on_stop(self, func: callable):
+    def on_stop(self, func: Callable):
         self._on_stop_funcs.append(func)
         return func

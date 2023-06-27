@@ -1,11 +1,10 @@
 import os
 
-from rpyc.utils.authenticators import SSLAuthenticator
-from rpyc.utils.server import ThreadedServer
-
 from certificate import generate_certificate
 from config import SERVICE_PORT, SSL_CERT_FILE, SSL_KEY_FILE
 from logger import logger
+from rpyc.utils.authenticators import SSLAuthenticator
+from rpyc.utils.server import ThreadedServer
 from service import XrayService
 
 
@@ -26,7 +25,7 @@ if __name__ == "__main__":
 
     authenticator = SSLAuthenticator(keyfile=SSL_KEY_FILE, certfile=SSL_CERT_FILE)
     thread = ThreadedServer(XrayService(),
-                            port=SERVICE_PORT,
+                            port=int(SERVICE_PORT),
                             authenticator=authenticator)
 
     logger.info(f"Node service running on :{SERVICE_PORT}")
