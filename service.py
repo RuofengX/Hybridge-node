@@ -14,7 +14,6 @@ class XrayService(rpyc.Service):
         self.connection = None
 
     def on_connect(self, conn):
-        assert self.connection is not None
         if self.connection:
             try:
                 self.connection.ping()
