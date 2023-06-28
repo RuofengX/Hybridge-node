@@ -4,6 +4,7 @@ ENV PYTHONUNBUFFERED 1
 
 WORKDIR /code
 
+RUN mkdir /var/lib/marzban-node/
 RUN apt-get update \
     && apt-get install -y curl unzip \
     && apt-get clean \
@@ -15,5 +16,7 @@ COPY . /code
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 RUN apt-get remove -y curl unzip
+
+EXPOSE 62050 62051
 
 CMD ["bash", "-c", "python main.py"]
